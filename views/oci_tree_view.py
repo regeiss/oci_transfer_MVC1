@@ -44,7 +44,6 @@ class OciTreeView(QTreeView):
 
         return selected_files
 
-
     def mouseDoubleClickEvent(self, event):
         """Handle double-click events to open folders"""
         index = self.indexAt(event.pos())

@@ -1,6 +1,6 @@
 # 
 class OCITreeItem:
-    def __init__(self, name, is_folder=False, size=None, modified=None, storage_tier=None, parent=None):
+    def __init__(self, name, is_folder=False, size=None, modified=None, storage_tier=None, parent=None, full_name=None):
         self.name = name
         self.is_folder = is_folder
         self.size = size
@@ -8,7 +8,8 @@ class OCITreeItem:
         self.storage_tier = storage_tier
         self.parent_item = parent
         self.children = []
-
+        self.full_name = full_name
+        
     def appendChild(self, child):
         self.children.append(child)
 
