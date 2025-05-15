@@ -1,6 +1,7 @@
-from PyQt5.QtCore import Qt, QAbstractItemModel, QModelIndex, QVariant
+from PyQt5.QtCore import Qt, QAbstractItemModel, QModelIndex, QVariant, QFileInfo
 from PyQt5.QtGui import QIcon
-import oci
+from PyQt5.QtWidgets import QMessageBox
+import oci, os, magic
 from datetime import datetime
 from models.oci_tree_item import OCITreeItem
 
@@ -14,50 +15,6 @@ class OciTreeModel(QAbstractItemModel):
         self.current_bucket = ""
         self.current_prefix = ""
         self.root_item = OCITreeItem("Root", is_folder=True)
-
-    def load_bucket_objects(self, bucket_name, prefix=""):
-        """Load objects and prefixes (subfolders) for the given bucket and prefix"""
-        if not bucket_name:
-            return
-
-        try:
-            self.beginResetModel()
-            self.root_item.children.clear()
-            self.current_bucket = bucket_name
-            self.current_prefix = prefix
-
-            response = self.object_storage.list_objects(
-                namespace_name=self.namespace,
-                bucket_name=self.current_bucket,
-                prefix=self.current_prefix,
-                delimiter="/",
-                fields="name,size,timeCreated,storageTier"
-            )
-
-            # Add subfolders (prefixes)
-            for subfolder in response.data.prefixes:
-                folder_name = subfolder.rstrip("/").split("/")[-1]
-                folder_item = OCITreeItem(name=folder_name, is_folder=True, parent=self.root_item)
-                self.root_item.appendChild(folder_item)
-
-            # Add files
-            for obj in response.data.objects:
-                if not obj.name.endswith("/"):  # Skip folder placeholders
-                    file_name = obj.name.split("/")[-1]
-                    file_item = OCITreeItem(
-                        name=file_name,
-                        is_folder=False,
-                        size=obj.size,
-                        modified=obj.time_created,
-                        parent=self.root_item
-                    )
-                    self.root_item.appendChild(file_item)
-
-            self.endResetModel()
-
-        except Exception as e:
-            self.endResetModel()
-            print(f"Error loading bucket objects: {str(e)}")
 
     def index(self, row, column, parent=QModelIndex()):
         """Return the index of the item in the model specified by row, column, and parent"""
@@ -101,28 +58,6 @@ class OciTreeModel(QAbstractItemModel):
         """Return the number of columns for the children of the given parent"""
         return 4  # Name, Size, Modified, Tier
 
-    def data(self, index, role=Qt.DisplayRole):
-        """Return the data stored under the given role for the item referred to by the index"""
-        if not index.isValid():
-            return QVariant()
-
-        item = index.internalPointer()
-
-        if role == Qt.DisplayRole:
-            if index.column() == 0:  # Name
-                return item.name
-            elif index.column() == 1:  # Size
-                return self.format_size(item.size) if not item.is_folder else ""
-            elif index.column() == 2:  # Modified
-                return item.modified.strftime("%Y-%m-%d %H:%M:%S") if item.modified else ""
-            elif index.column() == 3:  # Storage Tier
-                return item.storage_tier if not item.is_folder else ""
-
-        if role == Qt.DecorationRole and index.column() == 0:
-            return QIcon.fromTheme("folder") if item.is_folder else QIcon.fromTheme("text-x-generic")
-
-        return QVariant()
-    
     def flags(self, index):
         default_flags = super().flags(index)
         return default_flags | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled
@@ -136,22 +71,19 @@ class OciTreeModel(QAbstractItemModel):
                 return f"{size:.2f} {unit}"
             size /= 1024
         return f"{size:.2f} PB"
-    
-    
 
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
             return QVariant()
 
         item = index.internalPointer()
+        
         # print(f"Accessing data for item: {item.name}, row: {index.row()}, column: {index.column()}, role: {role}")  # Debug statement
-
-
         if index.column() == 0:  # Name column
             if role == Qt.DisplayRole:
                 return item.name
             if role == Qt.DecorationRole:
-                return QIcon.fromTheme("folder") if item.is_folder else QIcon.fromTheme("text-x-generic")
+                return QIcon('resources/icons/folder.png') if item.is_folder else (QIcon('resources/icons/ui-scroll-bar.png'))
 
         elif index.column() == 1:  # Size column
             if role == Qt.DisplayRole and not item.is_folder:
@@ -165,7 +97,7 @@ class OciTreeModel(QAbstractItemModel):
 
         elif index.column() == 3:  # Storage tier column
             if role == Qt.DisplayRole and not item.is_folder:
-                return "Standard"  # Default tier
+                return item.storage_tier
 
         return QVariant()
 
@@ -247,10 +179,33 @@ class OciTreeModel(QAbstractItemModel):
             except Exception as e:
                 self.endResetModel()
                 print(f"Erro ao carregar bucket: {str(e)}")
-                
 
-    ###################################################################################################
+    def copy_to_local(self, selected_files, bucket_name, local_directory):
+        """Upload selected files to the current OCI bucket"""
+        self.current_bucket = bucket_name
+        
+        if not self.current_bucket:  # Use self.current_bucket directly
+            QMessageBox.warning(None, "Erro", "Nenhum bucket selecionado.")
+            return
+#
+        try:
+            # local_directory = "c:/"
+            for object_name in selected_files:
+                file_name = os.path.basename(object_name)
+                local_path = os.path.join(local_directory, file_name)
 
+                # Download the file from OCI
+                response = self.object_storage.get_object(
+                    namespace_name=self.namespace,
+                    bucket_name=self.current_bucket,
+                    object_name=object_name
+                )
+                with open(local_path, "wb") as local_file:
+                    local_file.write(response.data.content)
+
+            QMessageBox.information(None, "Sucesso", "Arquivos baixados com sucesso para o diretório local.")
+        except Exception as e:
+            QMessageBox.critical(None, "Erro", f"Erro ao baixar arquivos:\n{str(e)}")
     # def get_path(self, index):  
     #     """Get full path for a given index"""
     #     if not index.isValid():

@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QTreeView, QHeaderView
+from PyQt5.QtWidgets import QTreeView, QHeaderView, QMessageBox
 from PyQt5.QtCore import Qt
 from models.local_file_model import LocalFileModel
 from views.custom_header_tree_view import CustomHeaderTreeView
@@ -27,3 +27,40 @@ class LocalTreeView(CustomHeaderTreeView):
         self.setSortingEnabled(True)
         self.sortByColumn(0, Qt.AscendingOrder)
         self.expandAll() #_c_drive()  # Expand C: drive by default
+
+    def get_selected_to_oci(self):
+        selected_indexes = self.selectionModel().selectedIndexes()
+
+        # Extract file paths from the selected indexes
+        selected_files = []
+        for index in selected_indexes:
+            if index.column() == 0:  # Only process the first column (file name)
+                file_path = self.model().filePath(index)
+                selected_files.append(file_path)
+
+        if not selected_files:
+            QMessageBox.warning(None, "Erro", "Nenhum arquivo selecionado no Local Tree View.")
+            return
+
+        return selected_files
+
+    def get_selected_directory(self):
+        """Get the currently selected directory in the Local Tree View."""
+        selected_indexes = self.selectionModel().selectedIndexes()
+
+        if not selected_indexes:
+            QMessageBox.warning(None, "Erro", "Nenhum diretório selecionado no Local Tree View.")
+            return None
+
+        # Process only the first selected index
+        index = selected_indexes[0]
+        if index.isValid():
+            # Check if the selected item is a directory
+            file_path = self.model().filePath(index)
+            if self.model().isDir(index):
+                return file_path
+            else:
+                QMessageBox.warning(None, "Erro", "O item selecionado não é um diretório.")
+                return None
+        return None
+

@@ -1,15 +1,20 @@
 from PyQt5.QtWidgets import QFileSystemModel, QMessageBox, QFileDialog
 from PyQt5.QtCore import QDir, Qt, QFileInfo
 from PyQt5.QtGui import QIcon
-import os
-from datetime import datetime
+import os, oci
 
 class LocalFileModel(QFileSystemModel):
     """Extended model for local file system with additional columns"""
     def __init__(self):
         super().__init__()
         self.setRootPath(QDir.rootPath())
- 
+        # self.namespace = "grhdwpxwta4w"
+        # self.current_bucket = "temp-sysnova"
+        self.config = oci.config.from_file()
+        self.object_storage = oci.object_storage.ObjectStorageClient(self.config)
+        self.namespace = self.object_storage.get_namespace().data
+        self.current_bucket = ""
+
     def columnCount(self, parent=None):
         # Add 4 columns (Name, Size, Type, Modified)
         return 4
@@ -96,3 +101,26 @@ class LocalFileModel(QFileSystemModel):
             if section < len(headers):
                 return headers[section]
         return super().headerData(section, orientation, role)
+    
+    def copy_to_oci(self, selected_files, bucket_name):
+        """Upload selected files to the current OCI bucket"""
+        self.current_bucket = bucket_name
+        
+        if not self.current_bucket:  # Use self.current_bucket directly
+            QMessageBox.warning(None, "Erro", "Nenhum bucket selecionado.")
+            return
+
+        try:
+            for file_path in selected_files:
+                file_name = os.path.basename(file_path)
+                with open(file_path, "rb") as file_data:
+                    # Perform the upload to OCI
+                    self.object_storage.put_object(
+                        namespace_name=self.namespace,
+                        bucket_name=bucket_name,
+                        object_name=file_name,
+                        put_object_body=file_data
+                    )
+            QMessageBox.information(None, "Sucesso", "Arquivos enviados com sucesso para o OCI.")
+        except Exception as e:
+            QMessageBox.critical(None, "Erro", f"Erro ao enviar arquivos:\n{str(e)}")

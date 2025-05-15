@@ -16,9 +16,9 @@ class MainViewModel(QObject):
     status_message = pyqtSignal(str)
     bucket_list_loaded = pyqtSignal(list)  # New signal to emit the bucket list
 
-    def __init__(self, local_model, oci_tree_model, transfer_model):
+    def __init__(self, local_tree_model, oci_tree_model, transfer_model):
         super().__init__()
-        self.local_model = local_model
+        self.local_tree_model = local_tree_model
         self.oci_tree_model = oci_tree_model
         self.transfer_model = transfer_model
 
@@ -46,6 +46,10 @@ class MainViewModel(QObject):
             except Exception as e:
                 self.status_message.emit(f"Erro ao carregar bucket: {str(e)}")
 
-    def copy_to_oci(self, local_file_path):
+    def copy_to_oci(self, selected_files, bucket_name):
         """Delegate the file upload to the OCI Tree Model"""
-        self.oci_tree_model.copy_to_oci(local_file_path)
+        self.local_tree_model.copy_to_oci(selected_files, bucket_name)
+
+    def copy_to_local(self, selected_files, bucket_name, local_directory):
+        """Delegate the file download to the OCI Tree Model"""
+        self.oci_tree_model.copy_to_local(selected_files, bucket_name, local_directory)   

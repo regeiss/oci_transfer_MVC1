@@ -8,7 +8,6 @@ from .transfer_queue_view import TransferQueueView
 from .app_menu import AppMenuBar  # Import AppMenuBar from the appropriate module
 from .app_toolbar import AppToolBar  # Import AppToolBar from the appropriate module
 from viewmodels.main_view_model import MainViewModel
-import os
 
 class MainWindow(QMainWindow):
     """Main application window"""
@@ -136,6 +135,7 @@ class MainWindow(QMainWindow):
         # Copy from OCI button
         self.copy_from_oci_btn = QPushButton("← Copiar da OCI ←")
         self.copy_from_oci_btn.setMinimumHeight(30)
+        self.copy_from_oci_btn.clicked.connect(self.copy_from_oci_action)
 
         # Other buttons
         self.up_button = QPushButton("↑ Subir")
@@ -158,20 +158,24 @@ class MainWindow(QMainWindow):
         # self._viewmodel.setOCIModel(self.oci_view.model())
 
     def copy_to_oci_action(self):
-        """Handle the action for copying files or directories to OCI from the local tree view"""
-        # Get the selected indexes from the local tree view
-        selected_indexes = self.local_view.selectionModel().selectedIndexes()
-
-        # Extract the file paths from the selected indexes
-        file_paths = []
-        for index in selected_indexes:
-            if index.column() == 0:  # Only process the first column (file name)
-                file_path = self.local_view.model().filePath(index)
-                file_paths.append(file_path)
-
-        # If files are selected, upload them to OCI
-        if file_paths:
-            for file_path in file_paths:
-                self._viewmodel.copy_to_oci(file_path)
+        # chamar a função copy_to_oci do local view 
+        selected_files = self.local_view.get_selected_to_oci()
+        if selected_files:
+            self._viewmodel.copy_to_oci(selected_files, self.bucket_combo.currentText()) 
+            self._viewmodel.load_bucket_objects(self.bucket_combo.currentText())
         else:
-            QMessageBox.warning(self, "Nenhum arquivo selecionado", "Por favor, selecione arquivos ou pastas na visualização local.")
+            QMessageBox.warning(self, "Erro", "Nenhum arquivo selecionado para copiar.")
+
+    def copy_from_oci_action(self):
+        # chamar a função copy_to_oci do local view 
+        selected_files = self.oci_view.get_selected_to_local()
+        local_directory = self.local_view.get_selected_directory()
+
+        if not local_directory: 
+            QFileDialog.getExistingDirectory(self, "Selecione o diretório de destino")
+                
+        if selected_files:
+            self._viewmodel.copy_to_local(selected_files, self.bucket_combo.currentText(), local_directory) 
+            # self._viewmodel.load_bucket_objects(self.bucket_combo.currentText())
+        else:
+            QMessageBox.warning(self, "Erro", "Nenhum arquivo selecionado para copiar.")
