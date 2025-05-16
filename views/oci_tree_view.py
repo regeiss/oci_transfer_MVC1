@@ -43,18 +43,3 @@ class OciTreeView(QTreeView):
             return
 
         return selected_files
-
-    def mouseDoubleClickEvent(self, event):
-        """Handle double-click events to open folders"""
-        index = self.indexAt(event.pos())
-        if not index.isValid():
-            return
-
-        item = index.internalPointer()
-        if item.is_folder:  # Check if the item is a folder
-            # Update the model to load the contents of the selected folder
-            self.model().load_bucket_objects(item.name)
-        else:
-            print(f"Double-clicked on file: {item.name}")
-
-        super().mouseDoubleClickEvent(event)

@@ -39,7 +39,7 @@ class LocalTreeView(CustomHeaderTreeView):
                 selected_files.append(file_path)
 
         if not selected_files:
-            QMessageBox.warning(None, "Erro", "Nenhum arquivo selecionado no Local Tree View.")
+            QMessageBox.warning(None, "Erro", "Nenhum arquivo selecionado no ambiente local.")
             return
 
         return selected_files
@@ -49,7 +49,7 @@ class LocalTreeView(CustomHeaderTreeView):
         selected_indexes = self.selectionModel().selectedIndexes()
 
         if not selected_indexes:
-            QMessageBox.warning(None, "Erro", "Nenhum diretório selecionado no Local Tree View.")
+            QMessageBox.warning(None, "Erro", "Nenhum diretório selecionado no no ambiente local.")
             return None
 
         # Process only the first selected index

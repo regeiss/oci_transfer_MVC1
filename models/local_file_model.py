@@ -8,8 +8,6 @@ class LocalFileModel(QFileSystemModel):
     def __init__(self):
         super().__init__()
         self.setRootPath(QDir.rootPath())
-        # self.namespace = "grhdwpxwta4w"
-        # self.current_bucket = "temp-sysnova"
         self.config = oci.config.from_file()
         self.object_storage = oci.object_storage.ObjectStorageClient(self.config)
         self.namespace = self.object_storage.get_namespace().data
@@ -22,7 +20,6 @@ class LocalFileModel(QFileSystemModel):
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
             return None
-        
         # Let QFileSystemModel handle the first column (Name)
         if index.column() == 0:
             return super().data(index, role)

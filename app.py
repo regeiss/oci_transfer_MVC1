@@ -14,6 +14,7 @@ from PyQt5.QtCore import QSettings
 def main():
     app = QApplication(sys.argv)
     load_proxy_settings()
+    
     # Initialize models
     local_model = LocalFileModel()
     oci_tree_model = OciTreeModel()

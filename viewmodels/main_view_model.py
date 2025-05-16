@@ -37,11 +37,11 @@ class MainViewModel(QObject):
             return "N/D"# Emit the bucket list to the main view
         return bucket_list  # Return the bucket list
 
-    def load_bucket_objects(self, bucket_name):
+    def load_bucket_structure(self, bucket_name):
         """Update OCI TreeView when bucket selection changes"""
         if bucket_name:     
             try:
-                self.oci_tree_model.load_bucket_objects(bucket_name)
+                self.oci_tree_model.load_bucket_structure(bucket_name)
                 # self.status_message.emit(f"Mostrando bucket: {bucket_name}")
             except Exception as e:
                 self.status_message.emit(f"Erro ao carregar bucket: {str(e)}")
@@ -53,3 +53,34 @@ class MainViewModel(QObject):
     def copy_to_local(self, selected_files, bucket_name, local_directory):
         """Delegate the file download to the OCI Tree Model"""
         self.oci_tree_model.copy_to_local(selected_files, bucket_name, local_directory)   
+
+    def load_bucket_structure(self, bucket_name):
+        try:
+            namespace = self.object_storage.get_namespace().data
+            objects = self.object_storage.list_objects(namespace, bucket_name, fields="name,size,timeCreated,storageTier").data.objects
+            
+            # Create the complete folder and file structure
+            for obj in objects:
+                path_parts = obj.name.split('/')
+                current_path = self.temp_dir
+                
+                # Create directories
+                for part in path_parts[:-1]:  # All parts except last are directories
+                    if part:  # Skip empty parts
+                        current_path = os.path.join(current_path, part)
+                        if not os.path.exists(current_path):
+                            os.makedirs(current_path, exist_ok=True)
+                
+                # Create empty file for the object (last part)
+                if path_parts[-1]:  # Only if it's not just a directory path
+                    file_path = os.path.join(current_path, path_parts[-1])
+                    open(file_path, 'a').close()  # Create empty file
+            
+            # Set the model root path
+            self.setRootPath(self.temp_dir)
+            # self.setSourceModel(self.source_model)
+            self.tree_view.setRootIndex(self.proxy_model.mapFromSource(
+                self.source_model.index(self.temp_dir)))
+            
+        except Exception as e:
+            QMessageBox.critical(self, "OCI Error", f"Failed to load bucket structure: {str(e)}")

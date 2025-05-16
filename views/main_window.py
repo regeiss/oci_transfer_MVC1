@@ -8,6 +8,7 @@ from .transfer_queue_view import TransferQueueView
 from .app_menu import AppMenuBar  # Import AppMenuBar from the appropriate module
 from .app_toolbar import AppToolBar  # Import AppToolBar from the appropriate module
 from viewmodels.main_view_model import MainViewModel
+import tempfile
 
 class MainWindow(QMainWindow):
     """Main application window"""
@@ -23,6 +24,8 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 1400, 800)
         self.setMinimumSize(800, 600)
         self.setWindowIcon(QIcon('resources/icons/folder.ico'))
+        # Create temporary directory structure
+
         # Create main layout
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
@@ -154,7 +157,7 @@ class MainWindow(QMainWindow):
         self.clear_queue_btn.setMinimumHeight(30)
 
     def bucket_combo_changed(self, bucket_name): 
-        self._viewmodel.load_bucket_objects(bucket_name)
+        self._viewmodel.load_bucket_structure(bucket_name)
         # self._viewmodel.setOCIModel(self.oci_view.model())
 
     def copy_to_oci_action(self):
@@ -162,7 +165,7 @@ class MainWindow(QMainWindow):
         selected_files = self.local_view.get_selected_to_oci()
         if selected_files:
             self._viewmodel.copy_to_oci(selected_files, self.bucket_combo.currentText()) 
-            self._viewmodel.load_bucket_objects(self.bucket_combo.currentText())
+            self._viewmodel.load_bucket_structure(self.bucket_combo.currentText())
         else:
             QMessageBox.warning(self, "Erro", "Nenhum arquivo selecionado para copiar.")
 
@@ -176,6 +179,6 @@ class MainWindow(QMainWindow):
                 
         if selected_files:
             self._viewmodel.copy_to_local(selected_files, self.bucket_combo.currentText(), local_directory) 
-            # self._viewmodel.load_bucket_objects(self.bucket_combo.currentText())
+            # self._viewmodel.load_bucket_structure(self.bucket_combo.currentText())
         else:
             QMessageBox.warning(self, "Erro", "Nenhum arquivo selecionado para copiar.")
