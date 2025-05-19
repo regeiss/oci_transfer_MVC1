@@ -16,7 +16,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._viewmodel = viewmodel
         self._viewmodel.signal_combo_changed.connect(self.bucket_combo_changed)
-        
+        self._viewmodel.oci_root_changed.connect(self.set_oci_tree_root)
         self.init_ui()
 
     def init_ui(self):
@@ -127,7 +127,7 @@ class MainWindow(QMainWindow):
         self.bucket_combo.setMinimumWidth(200)
         self.bucket_combo.addItems(self._viewmodel.load_bucket_combo())
         self.bucket_combo.activated.connect(self._viewmodel.first_load)
-        self.bucket_combo.currentTextChanged.connect(self._viewmodel.change_combo)
+        self.bucket_combo.currentTextChanged.connect(self.bucket_combo_changed)
         self.bucket_combo_changed(self.bucket_combo.currentText())  # Load objects for the selected bucket
 
         # Copy to OCI button
@@ -155,6 +155,10 @@ class MainWindow(QMainWindow):
         self.cancel_queue_btn.setEnabled(False)
         self.clear_queue_btn = QPushButton("Limpar Fila")
         self.clear_queue_btn.setMinimumHeight(30)
+
+    def set_oci_tree_root(self, path):
+        root_index = self.oci_view.model().index(path)
+        self.oci_view.setRootIndex(root_index)
 
     def bucket_combo_changed(self, bucket_name): 
         self._viewmodel.load_bucket_structure(bucket_name)

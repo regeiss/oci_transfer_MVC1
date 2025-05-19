@@ -39,7 +39,7 @@ class LocalFileModel(QFileSystemModel):
         elif index.column() == 2:  # Type column
             if role == Qt.DisplayRole:
                 if file_info.isDir():
-                    return "Folder"
+                    return "Pasta"
                 return self.get_file_type(file_info.filePath())
                 
         elif index.column() == 3:  # Modified column
@@ -56,7 +56,7 @@ class LocalFileModel(QFileSystemModel):
             return ""
         
         if os.path.isdir(path):
-            return "Folder"
+            return "Pasta"
             
         # Use python-magic or file extension as fallback
         try:
