@@ -15,6 +15,7 @@ def main():
     app = QApplication(sys.argv)
     load_proxy_settings()
     # Initialize models
+    # verify_oci_credentials()
     local_model = LocalFileModel()
     oci_tree_model = OciTreeModel()
     transfer_model = TransferModel()
@@ -22,8 +23,6 @@ def main():
     # Create the viewmodel and pass the oci_tree_view
     viewmodel = MainViewModel(local_model, oci_tree_model, transfer_model)  # Pass the local_tree_view as well
     window = MainWindow(viewmodel)  # Create the MainWindow first
-  
-    # main_controller.status_message.connect(window.status_label.setText)
     
     window.show()
     sys.exit(app.exec_())

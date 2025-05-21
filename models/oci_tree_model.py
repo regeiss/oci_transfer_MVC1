@@ -83,7 +83,7 @@ class OciTreeModel(QAbstractItemModel):
             if role == Qt.DisplayRole:
                 return item.name
             if role == Qt.DecorationRole:
-                return QIcon('resources/icons/folder.png') if item.is_folder else (QIcon('resources/icons/ui-scroll-bar.png'))
+                return QIcon('resources/icons/folder.svg') if item.is_folder else (QIcon('resources/icons/file.svg'))
 
         elif index.column() == 1:  # Size column
             if role == Qt.DisplayRole and not item.is_folder:
@@ -126,136 +126,74 @@ class OciTreeModel(QAbstractItemModel):
             raise
     
         return bucket_list
-    
-    # def load_bucket_objects(self, bucket_name):
-    #     """Update OCI TreeView when bucket selection changes"""
-    #     if bucket_name:  # Only proceed if a bucket is selected
-    #         try:
-    #             self.beginResetModel()
-    #             self.root_item.children.clear()
-    #             self.current_bucket = bucket_name
-                
-    #             response = self.object_storage.list_objects(
-    #                 namespace_name=self.namespace,
-    #                 bucket_name=self.current_bucket,
-    #                 prefix=self.current_prefix,
-    #                 delimiter="/",
-    #                 fields="name, size, timeCreated, storageTier"
-    #             )
-
-    #             # Create a dictionary to map folder paths to OCITreeItem objects
-    #             folder_map = {self.current_prefix: self.root_item}
-
-    #             # Add folders (prefixes) to the tree
-    #             for prefix in response.data.prefixes:
-    #                 folder_name = prefix.rstrip("/").split("/")[-1]
-    #                 parent_prefix = "/".join(prefix.rstrip("/").split("/")[:-1]) + "/"
-    #                 parent_item = folder_map.get(parent_prefix, self.root_item)
-
-    #                 folder_item = OCITreeItem(name=folder_name, is_folder=True)
-    #                 parent_item.appendChild(folder_item)
-    #                 folder_map[prefix] = folder_item
-
-    #             # Add files to the tree
-    #             for obj in response.data.objects:
-    #                 if not obj.name.endswith('/'):  # Skip folder placeholders
-    #                     file_name = obj.name.split("/")[-1]
-    #                     parent_prefix = "/".join(obj.name.split("/")[:-1]) + "/"
-    #                     parent_item = folder_map.get(parent_prefix, self.root_item)
-
-    #                     file_item = OCITreeItem(
-    #                         name=file_name,
-    #                         is_folder=False,
-    #                         size=obj.size,
-    #                         modified=obj.time_created,
-    #                         parent=parent_item
-    #                     )
-    #                     parent_item.appendChild(file_item)
-
-    #             self.data = self.root_item.children
-    #             self.endResetModel()         
-    #             # print(f"Root item children count: {len(self.root_item.children)}") 
-
-    #         except Exception as e:
-    #             self.endResetModel()
-    #             print(f"Erro ao carregar bucket: {str(e)}")
-
+  
     def load_bucket_objects(self, bucket_name, prefix=""):
         """Update OCI TreeView when bucket selection or folder changes."""
-        if bucket_name:  # Only proceed if a bucket is selected
-            try:
-                print(f"Loading bucket: {bucket_name}, prefix: {prefix}")  # Debug print
-                self.beginResetModel()
-                if prefix == "":
-                    self.root_item.children.clear()  # Clear only for root-level loading
-                self.current_bucket = bucket_name
-                self.current_prefix = prefix
+        if not bucket_name:
+            return
 
-                response = self.object_storage.list_objects(
-                    namespace_name=self.namespace,
-                    bucket_name=self.current_bucket,
-                    prefix=self.current_prefix,
-                    delimiter="/",
-                    fields="name, size, timeCreated, storageTier"
-                )
+        def add_items(parent_item, current_prefix):
+            response = self.object_storage.list_objects(
+                namespace_name=self.namespace,
+                bucket_name=bucket_name,
+                prefix=current_prefix,
+                delimiter="/",
+                fields="name,size,timeCreated,storageTier"
+            )
 
-                # Debug: Print response data
-                print(f"Prefixes: {response.data.prefixes}")
-                print(f"Objects: {[obj.name for obj in response.data.objects]}")
+            # Add folders (prefixes)
+            for folder_prefix in response.data.prefixes:
+                folder_name = folder_prefix.rstrip("/").split("/")[-1]
+                folder_item = OCITreeItem(name=folder_name, is_folder=True, full_name=folder_prefix, parent=parent_item)
+                parent_item.appendChild(folder_item)
+                # Recursively add subfolders and files
+                add_items(folder_item, folder_prefix)
 
-                # Create a dictionary to map folder paths to OCITreeItem objects
-                folder_map = {self.current_prefix: self.root_item}
+            # Add files directly under current_prefix
+            for obj in response.data.objects:
+                if not obj.name.endswith('/'):  # Skip folder placeholders
+                    file_name = obj.name.split("/")[-1]
+                    file_item = OCITreeItem(
+                        name=file_name,
+                        is_folder=False,
+                        size=obj.size,
+                        modified=obj.time_created,
+                        parent=parent_item,
+                        full_name=obj.name,
+                        storage_tier=getattr(obj, "storage_tier", None)
+                    )
+                    parent_item.appendChild(file_item)
 
-                # Add folders (prefixes) to the tree
-                for prefix in response.data.prefixes:
-                    folder_name = prefix.rstrip("/").split("/")[-1]
-                    parent_prefix = "/".join(prefix.rstrip("/").split("/")[:-1]) + "/"
-                    parent_item = folder_map.get(parent_prefix, self.root_item)
+        try:
+            print(f"Loading bucket: {bucket_name}, prefix: {prefix}")
+            self.beginResetModel()
+            self.root_item.children.clear()
+            self.current_bucket = bucket_name
+            self.current_prefix = prefix
 
-                    folder_item = OCITreeItem(name=folder_name, is_folder=True, full_name=prefix)
-                    parent_item.appendChild(folder_item)
-                    folder_map[prefix] = folder_item
+            add_items(self.root_item, prefix)
 
-                # Add files to the tree
-                for obj in response.data.objects:
-                    if not obj.name.endswith('/'):  # Skip folder placeholders
-                        file_name = obj.name.split("/")[-1]
-                        parent_prefix = "/".join(obj.name.split("/")[:-1]) + "/"
-                        parent_item = folder_map.get(parent_prefix, self.root_item)
-
-                        if parent_item is None:
-                            print(f"Warning: Parent item not found for file {file_name}")  # Debug print
-                            continue
-
-                        file_item = OCITreeItem(
-                            name=file_name,
-                            is_folder=False,
-                            size=obj.size,
-                            modified=obj.time_created,
-                            parent=parent_item,
-                            full_name=obj.name  # Full object name
-                        )
-                        parent_item.appendChild(file_item)
-
-                self.data = self.root_item.children
-                self.endResetModel()
-                print(f"Tree successfully loaded. Root children count: {len(self.root_item.children)}")  # Debug print
-            except Exception as e:
-                self.endResetModel()
-                print(f"Erro ao carregar bucket: {str(e)}")
+            self.data = self.root_item.children
+            self.endResetModel()
+            print(f"Tree successfully loaded. Root children count: {len(self.root_item.children)}")
+        except Exception as e:
+            self.endResetModel()
+            print(f"Erro ao carregar bucket: {str(e)}")
 
     def copy_to_local(self, selected_files, bucket_name, local_directory):
-        """Upload selected files to the current OCI bucket"""
+        """Download selected files from the current OCI bucket, preserving subfolder structure."""
         self.current_bucket = bucket_name
-        
-        if not self.current_bucket:  # Use self.current_bucket directly
+
+        if not self.current_bucket:
             QMessageBox.warning(None, "Erro", "Nenhum bucket selecionado.")
             return
-#
+
         try:
             for object_name in selected_files:
-                file_name = os.path.basename(object_name)
-                local_path = os.path.join(local_directory, file_name)
+                # Recreate the subfolder structure locally
+                relative_path = object_name  # object_name is the full path in the bucket
+                local_path = os.path.join(local_directory, relative_path)
+                os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
                 # Download the file from OCI
                 response = self.object_storage.get_object(
@@ -267,13 +205,13 @@ class OciTreeModel(QAbstractItemModel):
                     local_file.write(response.data.content)
 
             QMessageBox.information(None, "Sucesso", "Arquivos baixados com sucesso para o diretório local.")
-        
+
         except PermissionError:
             QMessageBox.critical(
-                    None,
-                    "Erro de Permissão",
-                    f"Sem permissão para salvar o arquivo: {local_path}. Verifique as permissões do diretório."
-                )
+                None,
+                "Erro de Permissão",
+                f"Sem permissão para salvar o arquivo: {local_path}. Verifique as permissões do diretório."
+            )
 
         except Exception as e:
             QMessageBox.critical(None, "Erro", f"Erro ao baixar arquivos:\n{str(e)}")

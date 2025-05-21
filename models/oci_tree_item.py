@@ -30,7 +30,7 @@ class OCITreeItem:
         elif column == 2:
             return self.modified
         elif column == 3:
-            return self.storage_tier
+            return "Padrão" if self.storage_tier is None else self.storage_tier
         return None
 
     def parent(self):
