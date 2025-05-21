@@ -63,47 +63,8 @@ class MainViewModel(QObject):
         self.oci_tree_model.copy_to_local(selected_files, bucket_name, local_directory)   
 
     def load_bucket_structure(self, bucket_name):
-
-        
-        self.temp_dir = tempfile.mkdtemp(prefix="oci_browser_")
-
-        # Reset the model
-        self.oci_tree_model.beginResetModel()
-        self.oci_tree_model.setRootPath(self.temp_dir)
-        self.oci_tree_model.endResetModel()
-
-        # Emit signal to update the view's root index
-        self.oci_root_changed.emit(self.temp_dir)
-        try:
-            namespace = self.object_storage.get_namespace().data
-            objects = self.object_storage.list_objects(namespace, bucket_name, fields="name,size,timeCreated,storageTier").data.objects
-            self.size_map = {}
-            # Create the complete folder and file structure
-            for obj in objects:
-                path_parts = obj.name.split('/')
-                current_path = self.temp_dir
-                full_path = os.path.join(self.temp_dir, *path_parts)
-                self.size_map[full_path] = obj.size  # Store size
-                # Create directories
-                for part in path_parts[:-1]:  # All parts except last are directories
-                    if part:  # Skip empty parts
-                        current_path = os.path.join(current_path, part)
-                        if not os.path.exists(current_path):
-                            os.makedirs(current_path, exist_ok=True)
-                
-                # Create empty file for the object (last part)
-                if path_parts[-1]:  # Only if it's not just a directory path
-                    file_path = os.path.join(current_path, path_parts[-1])
-                    open(file_path, 'a').close()  # Create empty file
-            
-            # Set the model root path
-
-            self.oci_tree_model.setRootPath(self.temp_dir)
-            self.oci_root_changed.emit(self.temp_dir) 
-            
-            if hasattr(self, 'oci_tree_model') and isinstance(self.oci_tree_model, SizeAwareFileSystemModel):
-                self.oci_tree_model.size_map = self.size_map
-                self.oci_tree_model.layoutChanged.emit() 
-                
-        except Exception as e:
-            QMessageBox.critical(self, "OCI Error", f"Failed to load bucket structure: {str(e)}")
+        temp_dir = self.oci_tree_model.load_bucket_structure(
+            self.object_storage, self.namespace, bucket_name
+        )
+        if temp_dir:
+            self.oci_root_changed.emit(temp_dir)

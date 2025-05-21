@@ -36,21 +36,17 @@ class OciTreeView(CustomHeaderTreeView):
         self.expandAll() #_c_drive()  # Expand C: drive by default
     
     def get_selected_to_local(self):
-        """Get the list of files selected in the OCI tree."""
+        """Get the list of full file paths selected in the OCI tree."""
         selected_indexes = self.selectionModel().selectedIndexes()
-
-        # Extract file paths from the selected indexes
         selected_files = []
         for index in selected_indexes:
             if index.column() == 0:  # Only process the first column (file name)
-                item = index.internalPointer()
-                if not item.is_folder:  # Only include files
-                    selected_files.append(item.name)
-
+                file_path = self.model().filePath(index)
+                if os.path.isfile(file_path):
+                    selected_files.append(file_path)
         if not selected_files:
             QMessageBox.warning(None, "Erro", "Nenhum arquivo selecionado no Oci Tree View.")
-            return
-
+            return []
         return selected_files
 
     def on_item_double_clicked(self, index: QModelIndex):
