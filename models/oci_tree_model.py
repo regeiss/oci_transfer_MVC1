@@ -1,9 +1,11 @@
 from PyQt5.QtCore import Qt, QAbstractItemModel, QModelIndex, QVariant, QFileInfo
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtWidgets import QMessageBox, QApplication
 import oci, os, magic
 from datetime import datetime
 from models.oci_tree_item import OCITreeItem
+from views.transfer_progress_dialog import TransferProgressDialog
+import time
 
 class OciTreeModel(QAbstractItemModel):
     """Extended model for OCI bucket contents with hierarchical structure"""
@@ -11,7 +13,8 @@ class OciTreeModel(QAbstractItemModel):
         super().__init__()
         self.config = oci.config.from_file()
         self.object_storage = oci.object_storage.ObjectStorageClient(self.config)
-        self.namespace = self.object_storage.get_namespace().data
+        self.namespace = self.object_storage.get_namespace().data 
+        self.compartment_id = self.config["compartment_id"]
         self.current_bucket = ""
         self.current_prefix = ""
         self.root_item = OCITreeItem("Root", is_folder=True)
@@ -110,19 +113,19 @@ class OciTreeModel(QAbstractItemModel):
 
     def load_bucket_combo(self):
         # Initialize the ObjectStorageClient
-        namespace = self.object_storage.get_namespace().data
-        compartment_id = self.config["tenancy"]
+        namespace =  self.config["namespace"] #"grhdwpxwta4w", #self.object_storage.get_namespace().data
+        compartment_id = self.config["compartment_id"] #self.config["compartment_id"]
           
         try:
             list_buckets_response = self.object_storage.list_buckets(
-                namespace_name = 'grhdwpxwta4w', #str(namespace), 
-                compartment_id = 'ocid1.compartment.oc1..aaaaaaaaoshcb5v3pozme5nt3cg6cymq5bo2nrlyt2vw54en23kamfd5xsda'#str(compartmentid)  
+                namespace_name = namespace, #str(namespace), 
+                compartment_id = compartment_id #'ocid1.compartment.oc1..aaaaaaaaoshcb5v3pozme5nt3cg6cymq5bo2nrlyt2vw54en23kamfd5xsda'#str(compartmentid)  
             )
 
             bucket_list = [bucket.name for bucket in list_buckets_response.data]
 
         except Exception as e:
-            self.status_message.emit(f"Erro OCI: {str(e)}")
+            # self.status_message.emit(f"Erro OCI: {str(e)}")
             raise
     
         return bucket_list
@@ -181,32 +184,77 @@ class OciTreeModel(QAbstractItemModel):
             print(f"Erro ao carregar bucket: {str(e)}")
 
     def copy_to_local(self, selected_files, bucket_name, local_directory):
-        """Download selected files from the current OCI bucket, preserving subfolder structure."""
+        """Download selected files from the current OCI bucket, preserving subfolder structure, with progress dialog."""
         self.current_bucket = bucket_name
 
         if not self.current_bucket:
             QMessageBox.warning(None, "Erro", "Nenhum bucket selecionado.")
             return
 
+        total_files = len(selected_files)
+        dialog = TransferProgressDialog(total_files, qapp=QApplication.instance())
+        dialog.show()
+
         try:
-            for object_name in selected_files:
-                # Recreate the subfolder structure locally
-                relative_path = object_name  # object_name is the full path in the bucket
+            for idx, object_name in enumerate(selected_files, 1):
+                if dialog.cancelled:
+                    QMessageBox.information(None, "Cancelado", "Transferência cancelada pelo usuário.")
+                    break
+
+                relative_path = object_name
                 local_path = os.path.join(local_directory, relative_path)
                 os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
-                # Download the file from OCI
                 response = self.object_storage.get_object(
                     namespace_name=self.namespace,
                     bucket_name=self.current_bucket,
                     object_name=object_name
                 )
-                with open(local_path, "wb") as local_file:
-                    local_file.write(response.data.content)
 
-            QMessageBox.information(None, "Sucesso", "Arquivos baixados com sucesso para o diretório local.")
+                total_size = None
+                try:
+                    total_size = int(response.headers.get('content-length', 0))
+                except Exception:
+                    total_size = None
+
+                with open(local_path, "wb") as local_file:
+                    total_read = 0
+                    chunk_size = 1024 * 1024  # 1MB
+                    while True:
+                        # PAUSE/RESUME SUPPORT
+                        while dialog.paused and not dialog.cancelled:
+                            dialog.qapp.processEvents()
+                            time.sleep(0.1)
+                        if dialog.cancelled:
+                            break
+
+                        chunk = response.data.raw.read(chunk_size)
+                        if not chunk:
+                            break
+                        local_file.write(chunk)
+                        total_read += len(chunk)
+                        if total_size and total_size > 0:
+                            percent = int((total_read / total_size) * 100)
+                        else:
+                            percent = 0
+                        dialog.update_file_progress(percent)
+                        dialog.label.setText(
+                            f"Baixando: {object_name} ({idx}/{total_files}) - {total_read // 1024} KB"
+                        )
+                        dialog.qapp.processEvents()
+                        if dialog.cancelled:
+                            break
+
+                dialog.update_file_progress(0)
+                dialog.update_total_progress(idx, total_files, object_name)
+                dialog.qapp.processEvents()
+
+            dialog.close()
+            if not dialog.cancelled:
+                QMessageBox.information(None, "Sucesso", "Arquivos baixados com sucesso para o diretório local.")
 
         except PermissionError:
+            dialog.close()
             QMessageBox.critical(
                 None,
                 "Erro de Permissão",
@@ -214,6 +262,7 @@ class OciTreeModel(QAbstractItemModel):
             )
 
         except Exception as e:
+            dialog.close()
             QMessageBox.critical(None, "Erro", f"Erro ao baixar arquivos:\n{str(e)}")
     # def get_path(self, index):  
     #     """Get full path for a given index"""

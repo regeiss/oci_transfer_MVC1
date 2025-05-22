@@ -47,7 +47,8 @@ class MainWindow(QMainWindow):
         self.dock_transfer_queue = QDockWidget("Fila de transferência", self)
         self.dock_transfer_queue.setWidget(self.transfer_queue_view)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_transfer_queue)
-
+        self.dock_transfer_queue.setEnabled(False)
+        self.dock_transfer_queue.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
         # Setup menu and toolbar
         self.setup_menu()
         self.setup_toolbar()
@@ -140,10 +141,14 @@ class MainWindow(QMainWindow):
         # Other buttons
         self.up_button = QPushButton("↑ Subir")
         self.up_button.setMinimumHeight(30)
+        self.up_button.setEnabled(False)
         self.refresh_btn = QPushButton("Atualizar")
         self.refresh_btn.setMinimumHeight(30)
+        self.refresh_btn.setEnabled(False)
         self.start_queue_btn = QPushButton("Iniciar Fila")
         self.start_queue_btn.setMinimumHeight(30)
+        self.start_queue_btn.setEnabled(False)
+        self.start_queue_btn.setToolTip("Iniciar a fila de transferência")
         self.pause_queue_btn = QPushButton("Pausa")
         self.pause_queue_btn.setMinimumHeight(30)
         self.pause_queue_btn.setEnabled(False)
@@ -152,6 +157,8 @@ class MainWindow(QMainWindow):
         self.cancel_queue_btn.setEnabled(False)
         self.clear_queue_btn = QPushButton("Limpar Fila")
         self.clear_queue_btn.setMinimumHeight(30)
+        self.clear_queue_btn.setEnabled(False)
+        self.clear_queue_btn.setToolTip("Limpar a fila de transferência")
 
     def bucket_combo_changed(self, bucket_name): 
         self._viewmodel.load_bucket_objects(bucket_name)

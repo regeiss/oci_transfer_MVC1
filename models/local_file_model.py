@@ -1,7 +1,9 @@
 from PyQt5.QtWidgets import QFileSystemModel, QMessageBox, QFileDialog
 from PyQt5.QtCore import QDir, Qt, QFileInfo
 from PyQt5.QtGui import QIcon
-import os, oci
+from views.transfer_progress_dialog import TransferProgressDialog
+from PyQt5.QtWidgets import QApplication
+import os, oci, time
 
 class LocalFileModel(QFileSystemModel):
     """Extended model for local file system with additional columns"""
@@ -103,24 +105,79 @@ class LocalFileModel(QFileSystemModel):
         return super().headerData(section, orientation, role)
     
     def copy_to_oci(self, selected_files, bucket_name):
-        """Upload selected files to the current OCI bucket"""
+        """Upload selected files to the current OCI bucket with progress dialog"""
         self.current_bucket = bucket_name
-        
-        if not self.current_bucket:  # Use self.current_bucket directly
+
+        if not self.current_bucket:
             QMessageBox.warning(None, "Erro", "Nenhum bucket selecionado.")
             return
 
+        total_files = len(selected_files)
+        dialog = TransferProgressDialog(total_files, qapp=QApplication.instance())
+        dialog.show()
+
         try:
-            for file_path in selected_files:
+            for idx, file_path in enumerate(selected_files, 1):
+                if dialog.cancelled:
+                    QMessageBox.information(None, "Cancelado", "Transferência cancelada pelo usuário.")
+                    break
+
                 file_name = os.path.basename(file_path)
+                file_size = os.path.getsize(file_path)
+                total_read = 0
+                chunk_size = 1024 * 1024  # 1MB
+
                 with open(file_path, "rb") as file_data:
-                    # Perform the upload to OCI
+                    wrapped_file = ProgressFileWrapper(file_data, file_size, dialog, idx, total_files, file_name)
                     self.object_storage.put_object(
                         namespace_name=self.namespace,
                         bucket_name=bucket_name,
                         object_name=file_name,
-                        put_object_body=file_data
+                        put_object_body=wrapped_file
                     )
-            QMessageBox.information(None, "Sucesso", "Arquivos enviados com sucesso para o OCI.")
+
+                dialog.update_file_progress(0)
+                dialog.update_total_progress(idx, total_files, file_name)
+                dialog.qapp.processEvents()
+
+            dialog.close()
+            if not dialog.cancelled:
+                QMessageBox.information(None, "Sucesso", "Arquivos enviados com sucesso para o OCI.")
+
         except Exception as e:
+            dialog.close()
             QMessageBox.critical(None, "Erro", f"Erro ao enviar arquivos:\n{str(e)}")
+
+class ProgressFileWrapper:
+    def __init__(self, file_obj, file_size, dialog, idx, total_files, file_name):
+        self.file_obj = file_obj
+        self.file_size = file_size
+        self.dialog = dialog
+        self.idx = idx
+        self.total_files = total_files
+        self.file_name = file_name
+        self.total_read = 0
+
+    def read(self, size=-1):
+        # PAUSE/RESUME SUPPORT
+        while self.dialog.paused and not self.dialog.cancelled:
+            self.dialog.qapp.processEvents()
+            time.sleep(0.1)
+        if self.dialog.cancelled:
+            return b""
+
+        chunk = self.file_obj.read(size)
+        self.total_read += len(chunk)
+        if self.file_size > 0:
+            percent = int((self.total_read / self.file_size) * 100)
+        else:
+            percent = 0
+        self.dialog.update_file_progress(percent)
+        self.dialog.label.setText(
+            f"Enviando: {self.file_name} ({self.idx}/{self.total_files}) - {self.total_read // 1024} KB"
+        )
+        self.dialog.qapp.processEvents()
+        return chunk
+
+    def __getattr__(self, attr):
+        return getattr(self.file_obj, attr)
