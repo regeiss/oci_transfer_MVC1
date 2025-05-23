@@ -29,8 +29,9 @@ class AppMenuBar(QMenuBar):
     about_triggered = pyqtSignal()
     exit_triggered = pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, basedir, parent=None):
         super().__init__(parent)
+        self.basedir = basedir
         self.setup_menus()
 
     def setup_menus(self):
@@ -98,7 +99,7 @@ class AppMenuBar(QMenuBar):
 
     def show_about(self):
         """Show about dialog"""
-        QMessageBox.about(self, "Sobre", "Explorador de Arquivos OCI\nVersão 1.0\nRoberto Edgar Geiss\nPMNH")   
+        QMessageBox.about(self, "Sobre", "Explorador de Arquivos OCI\nVersão 0.40.3\nPMNH")   
     def show_help(self):
         """Show help dialog"""
 

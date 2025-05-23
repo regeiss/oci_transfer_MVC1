@@ -8,8 +8,11 @@ from views.oci_tree_view import OciTreeView  # Import OciTreeView
 from views.local_tree_view import LocalTreeView  # Import LocalTreeView
 from viewmodels.main_view_model import MainViewModel  # Import MainViewModel
 from views.oci_tree_view import OciTreeView
-from utils.proxy_settings import load_proxy_settings
+from utils.settings import load_proxy_settings
 from PyQt5.QtCore import QSettings
+import os
+
+basedir = os.path.dirname(__file__)
 
 def main():
     app = QApplication(sys.argv)
@@ -20,7 +23,7 @@ def main():
     transfer_model = TransferModel()
     
     viewmodel = MainViewModel(local_model, oci_tree_model, transfer_model)  # Pass the local_tree_view as well
-    window = MainWindow(viewmodel)  # Create the MainWindow first
+    window = MainWindow(viewmodel, basedir)  # Create the MainWindow first
     
     window.show()
     sys.exit(app.exec_())

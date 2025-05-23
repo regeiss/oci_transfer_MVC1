@@ -3,6 +3,7 @@ from PyQt5.QtCore import QDir, Qt, QFileInfo
 from PyQt5.QtGui import QIcon
 from views.transfer_progress_dialog import TransferProgressDialog
 from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import QCoreApplication
 import os, oci, time
 
 class LocalFileModel(QFileSystemModel):
@@ -117,12 +118,46 @@ class LocalFileModel(QFileSystemModel):
         dialog.show()
 
         try:
+            copy_cancelled = False
             for idx, file_path in enumerate(selected_files, 1):
                 if dialog.cancelled:
                     QMessageBox.information(None, "Cancelado", "Transferência cancelada pelo usuário.")
                     break
 
                 file_name = os.path.basename(file_path)
+
+                # Check if file already exists in the bucket
+                try:
+                    self.object_storage.get_object(
+                        namespace_name=self.namespace,
+                        bucket_name=bucket_name,
+                        object_name=file_name
+                    )
+                    # If no exception, file exists
+                    msg_box = QMessageBox()
+                    msg_box.setWindowTitle("Arquivo já existe no OCI")
+                    msg_box.setText(f"O arquivo '{file_name}' já existe no bucket. Deseja sobrescrever?")
+                    msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                    yes_button = msg_box.button(QMessageBox.Yes)
+                    no_button = msg_box.button(QMessageBox.No)
+                    yes_button.setText(QCoreApplication.translate("QMessageBox", "Sim"))
+                    no_button.setText(QCoreApplication.translate("QMessageBox", "Não"))
+                    reply = msg_box.exec_()
+
+                    if reply == QMessageBox.No:
+                        dialog.update_file_progress(0)
+                        dialog.update_total_progress(idx, total_files, file_name)
+                        dialog.qapp.processEvents()
+                        copy_cancelled = True
+                        continue  # Skip this file
+                    else:
+                        copy_cancelled = False
+
+                except oci.exceptions.ServiceError as e:
+                    if e.status != 404:
+                        # If it's not a "not found" error, re-raise
+                        raise
+
                 file_size = os.path.getsize(file_path)
                 total_read = 0
                 chunk_size = 1024 * 1024  # 1MB
@@ -141,7 +176,7 @@ class LocalFileModel(QFileSystemModel):
                 dialog.qapp.processEvents()
 
             dialog.close()
-            if not dialog.cancelled:
+            if not dialog.cancelled and not copy_cancelled:
                 QMessageBox.information(None, "Sucesso", "Arquivos enviados com sucesso para o OCI.")
 
         except Exception as e:

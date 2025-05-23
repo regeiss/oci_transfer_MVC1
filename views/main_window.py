@@ -8,21 +8,22 @@ from .transfer_queue_view import TransferQueueView
 from .app_menu import AppMenuBar  # Import AppMenuBar from the appropriate module
 from .app_toolbar import AppToolBar  # Import AppToolBar from the appropriate module
 from viewmodels.main_view_model import MainViewModel
+import os
 
 class MainWindow(QMainWindow):
     """Main application window"""
-    def __init__(self, viewmodel):
+    def __init__(self, viewmodel, basedir):
         super().__init__()
+        self.basedir = basedir
         self._viewmodel = viewmodel
         self._viewmodel.signal_combo_changed.connect(self.bucket_combo_changed)
-        
         self.init_ui()
 
     def init_ui(self):
         self.setWindowTitle("OCI Transferência de arquivos")
         self.setGeometry(100, 100, 1400, 800)
         self.setMinimumSize(800, 600)
-        self.setWindowIcon(QIcon('resources/icons/folder.ico'))
+        self.setWindowIcon(QIcon(os.path.join(self.basedir, 'resources\\icons\\folder.ico')))
         # Create main layout
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
@@ -50,17 +51,17 @@ class MainWindow(QMainWindow):
         self.dock_transfer_queue.setEnabled(False)
         self.dock_transfer_queue.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
         # Setup menu and toolbar
-        self.setup_menu()
-        self.setup_toolbar()
+        self.setup_menu(self.basedir)
+        self.setup_toolbar(self.basedir)
         self.setup_layout()
 
-    def setup_menu(self):
-        self.menu_bar = AppMenuBar(self)
-        self.setMenuBar(self.menu_bar)
+    def setup_menu(self, basedir):
+        self.menu_bar = AppMenuBar(self, basedir)
+        self.setMenuBar(self.menu_bar, basedir)
         self.menu_bar.exit_triggered.connect(self.close)
         
-    def setup_toolbar(self):
-        self.toolbar = AppToolBar(self)
+    def setup_toolbar(self, basedir):
+        self.toolbar = AppToolBar(self, basedir)
         self.addToolBar(Qt.TopToolBarArea, self.toolbar)     
 
     def create_status_bar(self):

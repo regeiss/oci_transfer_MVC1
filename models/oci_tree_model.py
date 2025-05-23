@@ -1,4 +1,4 @@
-from PyQt5.QtCore import Qt, QAbstractItemModel, QModelIndex, QVariant, QFileInfo
+from PyQt5.QtCore import Qt, QAbstractItemModel, QModelIndex, QVariant, QCoreApplication, QFileInfo
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QMessageBox, QApplication
 import oci, os, magic
@@ -196,6 +196,7 @@ class OciTreeModel(QAbstractItemModel):
         dialog.show()
 
         try:
+            copy_cancelled = False
             for idx, object_name in enumerate(selected_files, 1):
                 if dialog.cancelled:
                     QMessageBox.information(None, "Cancelado", "Transferência cancelada pelo usuário.")
@@ -204,6 +205,26 @@ class OciTreeModel(QAbstractItemModel):
                 relative_path = object_name
                 local_path = os.path.join(local_directory, relative_path)
                 os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+                # Check if file already exists
+                if os.path.exists(local_path):
+                    msg_box = QMessageBox()
+                    msg_box.setWindowTitle("Arquivo já existe")
+                    msg_box.setText(f"O arquivo '{local_path}' já existe. Deseja sobrescrever?")
+                    msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                    yes_button = msg_box.button(QMessageBox.Yes)
+                    no_button = msg_box.button(QMessageBox.No)
+                    yes_button.setText(QCoreApplication.translate("QMessageBox", "Sim"))
+                    no_button.setText(QCoreApplication.translate("QMessageBox", "Não"))
+                    reply = msg_box.exec_()
+                    if reply == QMessageBox.No:
+                        dialog.update_file_progress(0)
+                        dialog.update_total_progress(idx, total_files, object_name)
+                        dialog.qapp.processEvents()
+                        copy_cancelled = True
+                        continue  # Skip this file
+                    else:
+                        copy_cancelled = False
 
                 response = self.object_storage.get_object(
                     namespace_name=self.namespace,
@@ -264,54 +285,3 @@ class OciTreeModel(QAbstractItemModel):
         except Exception as e:
             dialog.close()
             QMessageBox.critical(None, "Erro", f"Erro ao baixar arquivos:\n{str(e)}")
-    # def get_path(self, index):  
-    #     """Get full path for a given index"""
-    #     if not index.isValid():
-    #         return ""
-    #     item = index.internalPointer()
-    #     return item.path if item else ""
-    # def get_item(self, index):
-    #     """Get the item at the given index"""
-    #     if not index.isValid():
-    #         return None
-    #     return index.internalPointer()
-    # def get_item_by_path(self, path):   
-    #     """Get the item by its path"""
-    #     for item in self.root_item.children:
-    #         if item.path == path:
-    #             return item
-    #     return None
-    # def get_item_by_name(self, name):       
-    #     """Get the item by its name"""
-    #     for item in self.root_item.children:
-    #         if item.name == name:
-    #             return item
-    #     return None
-    # def get_item_by_index(self, index):       
-    #     """Get the item by its index"""
-    #     if not index.isValid():
-    #         return None
-    #     return index.internalPointer()
-    # def get_item_by_row(self, row):      
-    #     """Get the item by its row"""
-    #     if row < 0 or row >= self.root_item.childCount():
-    #         return None
-    #     return self.root_item.child(row)        
-    # def get_item_by_column(self, column):               
-    #     """Get the item by its column"""
-    #     if column < 0 or column >= self.columnCount():
-    #         return None
-    #     return self.root_item.child(column)
-    # def get_item_by_parent(self, parent):
-    #     """Get the item by its parent"""
-    #     if not parent.isValid():
-    #         return None
-    #     return parent.internalPointer()
-    # def get_item_by_parent_row(self, parent, row):                                  
-    #     """Get the item by its parent and row"""
-    #     if not parent.isValid():
-    #         return None
-    #     parent_item = parent.internalPointer()
-    #     if row < 0 or row >= parent_item.childCount():
-    #         return None
-    #     return parent_item.child(row)
