@@ -6,6 +6,7 @@ from datetime import datetime
 from models.oci_tree_item import OCITreeItem
 from views.transfer_progress_dialog import TransferProgressDialog
 import time
+from from_root import from_root
 
 class OciTreeModel(QAbstractItemModel):
     """Extended model for OCI bucket contents with hierarchical structure"""
@@ -79,6 +80,8 @@ class OciTreeModel(QAbstractItemModel):
         if not index.isValid():
             return QVariant()
 
+        ICON_FOLDER_PATH = from_root('resources', 'icons', 'folder.svg')
+        ICON_FILE_PATH = from_root('resources', 'icons', 'file.svg')
         item = index.internalPointer()
         
         # print(f"Accessing data for item: {item.name}, row: {index.row()}, column: {index.column()}, role: {role}")  # Debug statement
@@ -86,7 +89,7 @@ class OciTreeModel(QAbstractItemModel):
             if role == Qt.DisplayRole:
                 return item.name
             if role == Qt.DecorationRole:
-                return QIcon('resources/icons/folder.svg') if item.is_folder else (QIcon('resources/icons/file.svg'))
+                return QIcon(str(ICON_FOLDER_PATH)) if item.is_folder else (QIcon(str(ICON_FILE_PATH))) 
 
         elif index.column() == 1:  # Size column
             if role == Qt.DisplayRole and not item.is_folder:

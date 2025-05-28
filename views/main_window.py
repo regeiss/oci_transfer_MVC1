@@ -9,21 +9,23 @@ from .app_menu import AppMenuBar  # Import AppMenuBar from the appropriate modul
 from .app_toolbar import AppToolBar  # Import AppToolBar from the appropriate module
 from viewmodels.main_view_model import MainViewModel
 import os
+from from_root import from_root
 
 class MainWindow(QMainWindow):
     """Main application window"""
-    def __init__(self, viewmodel, basedir):
+    def __init__(self, viewmodel):
         super().__init__()
-        self.basedir = basedir
         self._viewmodel = viewmodel
         self._viewmodel.signal_combo_changed.connect(self.bucket_combo_changed)
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle("OCI Transferência de arquivos")
+        ICON_PATH = from_root('resources', 'icons', 'folder.ico')
+        self.setWindowTitle("Transferência de arquivos Nuvem")
         self.setGeometry(100, 100, 1400, 800)
         self.setMinimumSize(800, 600)
-        self.setWindowIcon(QIcon(os.path.join(self.basedir, 'resources\\icons\\folder.ico')))
+
+        self.setWindowIcon(QIcon(str(ICON_PATH)))
         # Create main layout
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
@@ -51,18 +53,18 @@ class MainWindow(QMainWindow):
         self.dock_transfer_queue.setEnabled(False)
         self.dock_transfer_queue.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
         # Setup menu and toolbar
-        self.setup_menu(self.basedir)
-        self.setup_toolbar(self.basedir)
+        self.setup_menu()
+        self.setup_toolbar()
         self.setup_layout()
 
-    def setup_menu(self, basedir):
-        self.menu_bar = AppMenuBar(self, basedir)
-        self.setMenuBar(self.menu_bar, basedir)
+    def setup_menu(self):
+        self.menu_bar = AppMenuBar(self)
+        self.setMenuBar(self.menu_bar)
         self.menu_bar.exit_triggered.connect(self.close)
         
-    def setup_toolbar(self, basedir):
-        self.toolbar = AppToolBar(self, basedir)
-        self.addToolBar(Qt.TopToolBarArea, self.toolbar)     
+    def setup_toolbar(self):
+        self.toolbar = AppToolBar()
+        self.addToolBar(Qt.TopToolBarArea, self.toolbar)
 
     def create_status_bar(self):
         """Create status bar"""
@@ -130,12 +132,12 @@ class MainWindow(QMainWindow):
         self.bucket_combo_changed(self.bucket_combo.currentText())  # Load objects for the selected bucket
 
         # Copy to OCI button
-        self.copy_to_oci_btn = QPushButton("→ Copiar para OCI →")
+        self.copy_to_oci_btn = QPushButton("→ Copiar para o bucket →")
         self.copy_to_oci_btn.setMinimumHeight(30)
         self.copy_to_oci_btn.clicked.connect(self.copy_to_oci_action)  # Connect the button to the action
 
         # Copy from OCI button
-        self.copy_from_oci_btn = QPushButton("← Copiar da OCI ←")
+        self.copy_from_oci_btn = QPushButton("← Copiar do bucket ←")
         self.copy_from_oci_btn.setMinimumHeight(30)
         self.copy_from_oci_btn.clicked.connect(self.copy_from_oci_action)
 
@@ -162,6 +164,7 @@ class MainWindow(QMainWindow):
         self.clear_queue_btn.setToolTip("Limpar a fila de transferência")
 
     def bucket_combo_changed(self, bucket_name): 
+        self._viewmodel.bucket_name = bucket_name
         self._viewmodel.load_bucket_objects(bucket_name)
         # self._viewmodel.setOCIModel(self.oci_view.model())
 

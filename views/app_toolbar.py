@@ -14,7 +14,8 @@ from PyQt5.QtWidgets import QToolBar, QAction, QStyle
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 import os 
-# from views.dark_theme import set_dark_theme 
+from pathlib import Path
+from from_root import from_root
 
 class AppToolBar(QToolBar):
    
@@ -24,28 +25,33 @@ class AppToolBar(QToolBar):
     save_triggered = pyqtSignal()
     theme_changed = pyqtSignal(str)  # 'light' or 'dark'
     
-    def __init__(self, basedir, parent=None):
+    def __init__(self, parent=None):
         super().__init__("Main Toolbar", parent)
         self.setMovable(False)
         self.setIconSize(QSize(24, 24))
+        self.basedir = None
         self.setup_actions()
         self.setup_toolbar()
         self.dark_mode = False
-        self.basedir = basedir
 
     def setup_actions(self):
+        
+        ICON_PATH = from_root('resources', 'icons', 'account_circle.svg')
         # New action
-        self.new_action = self.addAction(QIcon(os.path.join(self.basedir,"resources/icons/account_circle_24dp_E3E3E3.svg")), "Novo")
+
+        self.new_action = self.addAction(QIcon(str(ICON_PATH)), "Novo")
         self.new_action.setShortcut("Ctrl+N")
         self.new_action.triggered.connect(self.new_triggered.emit)
 
+        ICON_PATH = from_root('resources', 'icons', 'home.svg')
         # Open action
-        self.open_action = self.addAction(QIcon(os.path.join(self.basedir,"resources/icons/home_24dp_E3E3E3.svg")), "Abrir")
+        self.open_action = self.addAction(QIcon(str(ICON_PATH)), "Abrir")
         self.open_action.setShortcut("Ctrl+O")
         self.open_action.triggered.connect(self.open_triggered.emit)
 
+        ICON_PATH = from_root('resources', 'icons', 'info.svg')
         # Save action
-        self.save_action = self.addAction(QIcon(os.path.join(self.basedir,"resources/icons//settings_24dp_E3E3E3.svg")), "Salvar")
+        self.save_action = self.addAction(QIcon(str(ICON_PATH)), "Salvar")
         self.save_action.setShortcut("Ctrl+S")
         self.save_action.triggered.connect(self.save_triggered.emit)
 

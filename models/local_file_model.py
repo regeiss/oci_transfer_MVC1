@@ -1,3 +1,16 @@
+#===========================================================================================================================================
+# -*- coding: utf-8 -*-  # Arquivo: local_file_model.py
+# Versão: 1.0
+# Última alteração: 02/04/2025 - 17:13
+# Propósito: Gerar model para o explorador de arquivos local
+# Autor: Roberto Edgar Geiss 
+# Copyright: PMNH
+# Produto: 
+# Observacoes:   
+# Parametros: 
+# Detalhes especificos: 
+#===========================================================================================================================================
+
 from PyQt5.QtWidgets import QFileSystemModel, QMessageBox, QFileDialog
 from PyQt5.QtCore import QDir, Qt, QFileInfo
 from PyQt5.QtGui import QIcon
@@ -12,8 +25,14 @@ class LocalFileModel(QFileSystemModel):
         super().__init__()
         self.setRootPath(QDir.rootPath())
         # self.namespace = "grhdwpxwta4w"
-        # self.current_bucket = "temp-sysnova"
-        self.config = oci.config.from_file()
+        try:
+            self.config = oci.config.from_file()
+
+        except oci.exceptions.InvalidKeyFilePath as e:
+            QMessageBox.critical(None, "Erro de Configuração", f"Erro ao carregar configuração OCI: Revise o arquivo ")
+            self.config = None
+            exit(1) 
+
         self.object_storage = oci.object_storage.ObjectStorageClient(self.config)
         self.namespace = self.object_storage.get_namespace().data
         self.current_bucket = ""

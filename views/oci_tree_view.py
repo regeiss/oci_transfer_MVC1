@@ -1,13 +1,17 @@
 from PyQt5.QtWidgets import QTreeView, QHeaderView, QMessageBox
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import QMimeData
+from PyQt5.QtGui import QDrag 
 from models.oci_tree_model import OciTreeModel
 from views.custom_header_tree_view import CustomHeaderTreeView
+from PyQt5.QtCore import Qt 
 
 class OciTreeView(QTreeView):
     """View for local file system with custom headers"""
-    def __init__(self, viewmodel):
-        super().__init__()
-        self._viewmodel = viewmodel
+    def __init__(self, viewmodel, parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+        self.setDragDropMode(self.DropOnly)
+        self._viewmodel = viewmodel 
         self.setModel(self._viewmodel.oci_tree_model)
         self.setSelectionMode(QTreeView.ExtendedSelection)
         self.setDragEnabled(True)
@@ -71,3 +75,48 @@ class OciTreeView(QTreeView):
             print(f"Double-clicked on file: {item.name}")
 
         super().mouseDoubleClickEvent(event)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls():
+            file_paths = [url.toLocalFile() for url in event.mimeData().urls()]
+            # Here, trigger your upload logic. For example:
+            bucket_name = self._viewmodel.bucket_name
+            if bucket_name:
+                self._viewmodel.local_tree_model.copy_to_oci(file_paths, bucket_name)
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+ 
+    def startDrag(self, supportedActions):
+        indexes = self.selectedIndexes()
+        if not indexes:
+            return
+        mime_data = QMimeData()
+        object_names = []
+        for index in indexes:
+            if index.column() == 0:
+                item = index.internalPointer()
+                # Only drag files, not folders
+                if not getattr(item, "is_folder", False):
+                    object_name = getattr(item, "full_name", None)
+                    if object_name:
+                        object_names.append(object_name)
+        if not object_names:
+            return
+        # Use a custom mimetype to indicate OCI objects
+        mime_data.setData("application/x-oci-object", ";".join(object_names).encode("utf-8"))
+        drag = QDrag(self)
+        drag.setMimeData(mime_data)
+        drag.exec_(Qt.CopyAction)

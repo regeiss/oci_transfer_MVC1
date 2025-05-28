@@ -15,12 +15,14 @@ class MainViewModel(QObject):
     signal_combo_activated = pyqtSignal(int)
     status_message = pyqtSignal(str)
     bucket_list_loaded = pyqtSignal(list)  # New signal to emit the bucket list
+    bucket_name = ''
 
     def __init__(self, local_tree_model, oci_tree_model, transfer_model):
         super().__init__()
         self.local_tree_model = local_tree_model
         self.oci_tree_model = oci_tree_model
         self.transfer_model = transfer_model
+        self.selected_bucket = None
 
     def change_combo(self, bucket_name):
         print(f"bucket_name: {bucket_name}, type: {type(bucket_name)}")  #
@@ -53,3 +55,9 @@ class MainViewModel(QObject):
     def copy_to_local(self, selected_files, bucket_name, local_directory):
         """Delegate the file download to the OCI Tree Model"""
         self.oci_tree_model.copy_to_local(selected_files, bucket_name, local_directory)   
+
+    def set_selected_bucket(self, bucket_name):
+        self.selected_bucket = bucket_name
+
+    def get_selected_bucket(self):
+        return self.selected_bucket
