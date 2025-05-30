@@ -13,12 +13,12 @@ from PyQt5.QtCore import QSettings
 from PyQt5.QtGui import QIcon
 import os
 
-try:
-    from ctypes import windll  # Only exists on Windows.
-    myappid = 'br.gov.rs.pmhn.oci_transferencia'  # Set this to a unique ID for your app
-    windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-except ImportError:
-    pass
+# try:
+#     from ctypes import windll  # Only exists on Windows.
+#     myappid = 'br.gov.rs.pmhn.oci_transferencia'  # Set this to a unique ID for your app
+#     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+# except ImportError:
+#     pass
 
 def main():
     app = QApplication(sys.argv)

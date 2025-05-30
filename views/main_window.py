@@ -37,7 +37,7 @@ class MainWindow(QMainWindow):
 
         self.create_status_bar()
         # Create local file view
-        self.local_view = LocalTreeView()
+        self.local_view = LocalTreeView(self._viewmodel)
         self.splitter.addWidget(self.local_view)
 
         # Create OCI view

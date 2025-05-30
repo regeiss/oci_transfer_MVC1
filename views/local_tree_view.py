@@ -108,7 +108,7 @@ class LocalTreeView(CustomHeaderTreeView):
             # Get the selected bucket from the viewmodel (adjust as needed)
             bucket_name = self._viewmodel.get_selected_bucket()
             # Call the viewmodel to perform the download
-            self.parent()._viewmodel.copy_to_local(object_names, bucket_name, local_directory)
+            self._viewmodel.copy_to_local(object_names, bucket_name, local_directory)
             event.acceptProposedAction()
         else:
             super().dropEvent(event)
